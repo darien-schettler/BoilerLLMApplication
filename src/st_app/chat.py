@@ -1,5 +1,6 @@
 import streamlit as st
 from openai.error import OpenAIError
+import runhouse as rh
 
 from src.data_manager.data_loader import (
     embed_text,
@@ -14,6 +15,7 @@ from src.data_manager.output_parsing import (
 )
 from src.model_manager.model_ecosystem import get_llm_response
 from src.st_app.components.sidebar import sidebar
+from src.runhouse_ops.instance_handler import get_rh_query_fn, init_rh
 
 
 def clear_submit():
@@ -27,6 +29,9 @@ class BoilerLLMApp:
 
         # Initialize the sidebar
         sidebar()
+
+        # Default query fn
+        self.query_fn = get_llm_response
 
         # Initialize the main content
         st.header("📖BoilerLLM")
@@ -89,9 +94,9 @@ class BoilerLLMApp:
         #
         # Under the 'Advanced Options' expansion panel, monitor two boolean checkboxes
         with st.expander("Advanced Options"):
-            self.show_all_chunks = st.checkbox("Show all chunks retrieved from vector search")
-            self.show_full_doc = st.checkbox("Show parsed contents of the document")
-            self.use_streaming = st.checkbox("Stream the model results", value=True)
+            self.show_all_chunks = st.checkbox("Show all chunks retrieved from vector search", value=False)
+            self.show_full_doc = st.checkbox("Show parsed contents of the document", value=False)
+            self.use_streaming = st.checkbox("Stream the model results", value=False)
 
             top_k_col, temp_col = st.columns(2)
             with top_k_col:
@@ -158,7 +163,7 @@ class BoilerLLMApp:
                 # ----- STEP 3 -----
                 #
                 # Pass the context and query to the model via `get_answer` and store the response
-                raw_llm_response = get_llm_response(
+                raw_llm_response = self.query_fn(
                     sources, self.query, use_streaming=self.use_streaming, qa_model_temp=self.temp,
                     _container=self.response_box if self.use_streaming else None
                 )
@@ -190,7 +195,14 @@ class BoilerLLMApp:
             except OpenAIError as e:
                 st.error(e._message)
 
+
+    def rh_ops(self):
+        self.gpu = init_rh()
+        if self.gpu:
+            self.query_fn = get_rh_query_fn(get_llm_response, self.gpu)
+
     def render(self):
+        self.rh_ops()
         self.upload_file()
         self.query()
         self.submit()
