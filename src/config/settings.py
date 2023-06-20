@@ -6,6 +6,7 @@ load_dotenv(find_dotenv())
 
 # General Configurations
 MODEL_NAME = os.getenv("MODEL_NAME", "llama7b")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 #########################
 # I think I can replace the below with RH config/auth as it takes care of all of this
