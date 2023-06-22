@@ -2,7 +2,8 @@ import os
 import streamlit as st
 
 from src import _CONSTANTS
-from src.auth import set_openai_api_key, dotenv_auth
+from src.auth import dotenv_auth
+from src.st_app.state_utils import set_openai_api_key
 
 # Define the URL to the OpenAI API keys page
 OPENAI_API_KEYS_URL = _CONSTANTS.get('OPENAI_API_KEYS_URL', 'www.google.com')

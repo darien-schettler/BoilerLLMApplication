@@ -3,3 +3,4 @@ langchain
 runhouse
 openai
 docx2txt
+PyPDF2

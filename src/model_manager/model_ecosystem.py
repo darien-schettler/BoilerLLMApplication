@@ -22,6 +22,7 @@ class StreamlitCallbackHandler(BaseCallbackHandler):
         else:
             raise ValueError(f"Invalid display_method: {self.display_method}")
 
+
 def get_openai_model(model_name="gpt-3.5-turbo-0613", temperature=0.7, use_streaming=False,
                      streaming_cb="streamlit", st_container=None, verbose=True, **kwargs):
     """
@@ -56,15 +57,12 @@ def get_openai_model(model_name="gpt-3.5-turbo-0613", temperature=0.7, use_strea
     return model
 
 
-@st.cache_data()
 def get_llm_response(
-        _docs: List[Document],
-        query: str,
-        qa_model_name: str = "gpt-3.5-turbo-0613",
-        qa_model_temp: Union[float, int] = 0.0,
-        qa_chain_type: str = "stuff",
-        use_streaming: bool = False,
-        _container: st.container = None,
+        llm: Union[OpenAI, ChatOpenAI],
+        sources: List[Document],
+        query_text: str,
+        qa_hyperparameters: Dict[str, Any],
+        chain_type: str = "stuff",
 ) -> Dict[str, Any]:
     """Gets the LLM response to a question w/ injected context via a list of Documents.
 
@@ -74,17 +72,20 @@ def get_llm_response(
     input arguments need to be mutable.
 
     Args:
-        _docs (List[Document]):
+        sources (List[Document]):
             - A list of Documents that have been chunked w/ appropriate metadata for which we will extract the most
               relevant results to inject as context into the chat model.
-        query (str):
+        query_text (str):
             - The query that we want to answer using the chat model with Documents as context.
-        qa_model_name (str, optional):
-            - The name of the openai chat model to use
-        qa_model_temp (Union[float, int], optional):
-            - The temperature to use for the chat model. Lower values are more conservative and deterministic while
-              higher values are more creative and unpredictable
-        qa_chain_type (str, optional):
+        qa_hyperparams (Dict[str, Any]): If any of these change it should trigger a rerun of the function
+            model_name (str, optional):
+                - The name of the openai chat model to use
+            model_temp (Union[float, int], optional):
+                - The temperature to use for the chat model. Lower values are more conservative and deterministic while
+                  higher values are more creative and unpredictable
+            top_k_sources (int, optional):
+                - The number of top sources to use for the chat model
+        chain_type (str, optional):
             - The type of chain to use for the chat model. Can be ['stuff' | 'reduce' |'rerank']
                 - 'stuff' tbd
                 - 'reduce' tbd
@@ -100,18 +101,11 @@ def get_llm_response(
 
     # TODO: Replace with our own qa w/ sources chain
     qa_w_srcs_chain = load_qa_with_sources_chain(
-        llm = get_openai_model(
-            model_name=qa_model_name,
-            temperature=qa_model_temp,
-            use_streaming=use_streaming,
-            streaming_cb="streamlit",
-            st_container=_container,
-            verbose=True,
-            openai_api_key=st.session_state.get("OPENAI_API_KEY")),
-        chain_type=qa_chain_type,
-        prompt=IR_PROMPTS.get(qa_chain_type),
+        llm = llm,
+        chain_type=chain_type,
+        prompt=IR_PROMPTS.get(chain_type),
     )
 
     # Get the answer by running the chain
-    answer = qa_w_srcs_chain({"input_documents": _docs, "question": query}, return_only_outputs=True)
+    answer = qa_w_srcs_chain({"input_documents": sources, "question": query_text}, return_only_outputs=True)
     return answer
